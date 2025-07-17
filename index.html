@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F1 Constructor Standings</title>
+    <!-- Google Fonts: Titillium Web -->
+    <link href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Import Titillium Web font directly in CSS for CodePen compatibility */
+        @import url('https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600;700;900&display=swap');
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            font-family: 'Titillium Web', sans-serif;
+            background-color: #1a1a1a; /* Dark background */
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 20px;
+            box-sizing: border-box;
+            color: #e0e0e0; /* Default text color */
+        }
+        .container {
+            background-color: #282828; /* Fallback background color */
+            /* Combined background properties for image and dimming overlay */
+            background: linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3)), var(--bg-image-url, url('https://placehold.co/700x400/282828/ffffff?text=F1+Car'));
+            background-size: cover; /* Cover the entire container */
+            background-position: center; /* Center the image */
+            background-repeat: no-repeat; /* Do not repeat the image */
+            border-radius: 12px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+            padding: 24px;
+            width: 100%;
+            max-width: 700px;
+            box-sizing: border-box;
+            overflow: hidden;
+            border: 1px solid #3a3a3a;
+            transition: background 0.5s ease-in-out; /* Smooth transition for background property */
+        }
+        .container h1 {
+            color: #E10600; /* F1 Red */
+            border-bottom: 2px solid #E10600; /* F1 Red underline */
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            font-size: 1.8rem;
+            text-align: center;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8); /* Added text shadow for visibility */
+        }
+        .loading, .error {
+            text-align: center;
+            padding: 20px;
+            color: #cccccc;
+            font-size: 1.1rem;
+        }
+        .standings-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .standings-table th, .standings-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #3a3a3a; /* Darker border for rows */
+        }
+        .standings-table th {
+            background-color: #3a3a3a; /* Header background */
+            color: #ffffff;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.9rem;
+            letter-spacing: 0.03em;
+        }
+        /* Apply semi-transparent background to table body for readability over image */
+        .standings-table tbody {
+            background-color: rgba(0, 0, 0, 0.6); /* Semi-transparent black */
+            border-radius: 8px; /* Match container border radius */
+        }
+        .standings-table tbody tr:hover {
+            background-color: rgba(51, 51, 51, 0.7); /* Slightly lighter on hover with transparency */
+        }
+        .standings-table td {
+            color: #e0e0e0;
+            font-size: 0.95rem;
+        }
+        .position-cell {
+            font-weight: 900;
+            width: 10%;
+        }
+        .team-name-cell {
+            font-weight: 600;
+            width: 60%;
+        }
+        .points-cell {
+            font-weight: 700;
+            text-align: right;
+            width: 30%;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>F1 Constructor Standings</h1>
+        <div id="standings-content">
+            <div class="loading">Loading constructor standings...</div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const standingsContent = document.getElementById('standings-content');
+            const container = document.querySelector('.container');
+            const apiUrl = 'https://api.jolpi.ca/ergast/f1/current/constructorStandings.json';
+
+            // Define team primary colors for F1 constructors
+            const teamColors = {
+                "Red Bull": "#0600EF",
+                "Mercedes": "#00D2BE",
+                "Ferrari": "#DC0000",
+                "McLaren": "#FF8700",
+                "Aston Martin": "#006F62",
+                "Alpine F1 Team": "#0090FF",
+                "Williams": "#005AFF",
+                "RB F1 Team": "#6692FF", // Changed key to match API output
+                "Sauber": "#00E067",
+                "Haas F1 Team": "#B6B6B6",
+                "default": "#E0E0E0"
+            };
+
+            // Define team car image URLs
+            const teamCarImages = {
+                "McLaren": "https://mclaren.bloomreach.io/delivery/resources/content/gallery/mclaren-racing/formula-1/2025/nsr/f1-75-live-m/web/mcl39-cover-image.jpg",
+                "Ferrari": "https://4kwallpapers.com/images/wallpapers/ferrari-sf-25-8k-7680x7680-21456.jpg",
+                "Mercedes": "https://images.ctfassets.net/1fvlg6xqnm65/EqDLZL0EVMDdFEvHzfoXt/ef32298003daf4800959cd831a2c434c/Mercedes-AMG_F1_W16_E_Performance_Desktop_Wallpaper_3.png",
+                "Red Bull": "https://motorsportmagazine.b-cdn.net/wp-content/uploads/2025/02/Red-Bull-2025-F1-car.jpg",
+                "Williams": "https://preview.redd.it/atlassian-williams-racing-2025-livery-hi-res-studio-photo-v0-et139s1mmyje1.jpeg?auto=webp&s=91e0122e24a2baae9744f643b3986fd94efe0d85",
+                "Sauber": "https://images.prismic.io/formula-1-dashboard/Z8RhLhsAHJWomB4S_2025-kick-sauber-livery-1-formula-1-dashboard.jpg?auto=format%2Ccompress&fit=max",
+                "RB F1 Team": "https://wallpapers4screen.com/Uploads/20-2-2025/67355/thumb2-2025-racing-bulls-rb02-4k-front-view-exterior.jpg", // Changed key to match API output
+                "Aston Martin": "https://assets.astonmartinf1.com/public/cms/2GRPZDB65agEfSjwzbaGPv/cfbc897f33c82f2f40e0b18e4506372d/AMR25_OG_image.jpg?w=1500&fit=fill",
+                "Haas F1 Team": "https://wallpapers4screen.com/Uploads/1-3-2025/68121/thumb2-2025-haas-vf25-4k-side-view-exterior.jpg",
+                "Alpine F1 Team": "https://media.alpinecars.com/wp-content/uploads/2025/05/c759839f94be6ba12bba97055d98c7c3-l.jpg.webp",
+                "default": "https://placehold.co/700x400/282828/ffffff?text=F1+Car" // Default placeholder
+            };
+
+            // Variable to store the URL of the lead team's car image
+            let currentLeadTeamImageUrl = teamCarImages["default"];
+
+            /**
+             * Fetches the current F1 Constructor Standings from the API.
+             * @returns {Promise<Array>} A promise that resolves to an array of constructor standings.
+             */
+            async function fetchConstructorStandings() {
+                try {
+                    const response = await fetch(apiUrl);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}. Could not fetch data.`);
+                    }
+                    const data = await response.json();
+                    const constructorStandings = data.MRData.StandingsTable.StandingsLists[0].ConstructorStandings;
+                    return constructorStandings;
+                } catch (error) {
+                    console.error("Error fetching F1 constructor standings:", error);
+                    standingsContent.innerHTML = `
+                        <div class="error">
+                            Failed to load standings. This might be due to a network issue or the data source being temporarily unavailable.
+                            <br>
+                            <small>Error details: ${error.message}</small>
+                        </div>
+                    `;
+                    return null;
+                }
+            }
+
+            /**
+             * Renders the constructor standings table.
+             * @param {Array} standings - Array of constructor standing objects.
+             */
+            function renderConstructorStandings(standings) {
+                if (standings === null) {
+                    return;
+                }
+
+                if (standings.length === 0) {
+                    standingsContent.innerHTML = '<div class="error">No constructor standings data available for the current season.</div>';
+                    return;
+                }
+
+                // Identify the lead team and set initial background image
+                const leadTeamName = standings[0].Constructor.name;
+                currentLeadTeamImageUrl = teamCarImages[leadTeamName] || teamCarImages["default"];
+                
+                // Set the initial background image with the dimming overlay
+                container.style.backgroundImage = `linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3)), url('${currentLeadTeamImageUrl}')`;
+
+                let tableHtml = `
+                    <table class="standings-table">
+                        <thead>
+                            <tr>
+                                <th class="position-cell">Pos</th>
+                                <th class="team-name-cell">Team</th>
+                                <th class="points-cell">Points</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+
+                standings.forEach(entry => {
+                    const position = entry.position;
+                    const teamName = entry.Constructor.name;
+                    const points = entry.points;
+                    const teamColor = teamColors[teamName] || teamColors["default"];
+
+                    tableHtml += `
+                        <tr>
+                            <td class="position-cell" style="color: ${teamColor};">${position}</td>
+                            <td class="team-name-cell" style="color: ${teamColor};">${teamName}</td>
+                            <td class="points-cell" style="color: #E10600;">${points}</td> <!-- Inline style for F1 Red points -->
+                        </tr>
+                    `;
+                });
+
+                tableHtml += `
+                        </tbody>
+                    </table>
+                `;
+                standingsContent.innerHTML = tableHtml;
+
+                // Add hover effects after the table is rendered
+                const tableRows = standingsContent.querySelectorAll('.standings-table tbody tr');
+
+                tableRows.forEach(row => {
+                    // Get the team name from the current row's team-name-cell
+                    const teamName = row.querySelector('.team-name-cell').textContent;
+                    const teamHoverImage = teamCarImages[teamName] || teamCarImages["default"];
+
+                    row.addEventListener('mouseenter', () => {
+                        container.style.backgroundImage = `linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3)), url('${teamHoverImage}')`;
+                    });
+
+                    row.addEventListener('mouseleave', () => {
+                        // Revert to the initial lead team car image
+                        container.style.backgroundImage = `linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3)), url('${currentLeadTeamImageUrl}')`;
+                    });
+                });
+            }
+
+            async function updateStandings() {
+                standingsContent.innerHTML = '<div class="loading">Loading constructor standings...</div>';
+                const standings = await fetchConstructorStandings();
+                if (standings !== null) {
+                    renderConstructorStandings(standings);
+                }
+            }
+
+            updateStandings();
+            setInterval(updateStandings, 300000);
+        });
+    </script>
+</body>
+</html>
